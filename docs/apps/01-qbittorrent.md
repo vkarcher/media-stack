@@ -6,6 +6,11 @@
 **📊 Niveau :** Débutant → Avancé  
 **🔗 Prérequis :** qBittorrent installé via setup.sh
 
+**🔗 Ressources officielles :**
+- [GitHub qBittorrent](https://github.com/qbittorrent/qBittorrent)
+- [Site officiel](https://www.qbittorrent.org/)
+- [Documentation](https://github.com/qbittorrent/qBittorrent/wiki)
+
 ---
 
 ## 📖 Table des matières

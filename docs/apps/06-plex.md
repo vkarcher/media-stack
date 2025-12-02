@@ -6,6 +6,12 @@
 **📊 Niveau :** Débutant  
 **🔗 Prérequis :** NAS avec médias organisés
 
+**🔗 Ressources officielles :**
+- [Site officiel Plex](https://www.plex.tv/)
+- [Support & Documentation](https://support.plex.tv/)
+- [Forums](https://forums.plex.tv/)
+- [Téléchargements](https://www.plex.tv/fr/media-server-downloads/)
+
 ---
 
 ## 📖 Table des matières

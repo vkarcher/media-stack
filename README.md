@@ -9,6 +9,11 @@
 [![Docker](https://img.shields.io/badge/Docker-required-2496ED?logo=docker)](https://www.docker.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
 
+![GitHub stars](https://img.shields.io/github/stars/vkarcher/media-stack?style=social)
+![GitHub forks](https://img.shields.io/github/forks/vkarcher/media-stack?style=social)
+![GitHub issues](https://img.shields.io/github/issues/vkarcher/media-stack)
+![GitHub last commit](https://img.shields.io/github/last-commit/vkarcher/media-stack)
+
 > Guide complet pour déployer une stack média automatisée sur un NAS Synology : **Overseerr → Radarr / Sonarr → Prowlarr → qBittorrent → Plex**
 
 ---

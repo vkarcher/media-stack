@@ -6,6 +6,11 @@
 **📊 Niveau :** Intermédiaire  
 **🔗 Prérequis :** Prowlarr installé, qBittorrent configuré
 
+**🔗 Ressources officielles :**
+- [GitHub Prowlarr](https://github.com/Prowlarr/Prowlarr)
+- [Wiki Servarr](https://wiki.servarr.com/prowlarr)
+- [Discord](https://discord.gg/prowlarr)
+
 ---
 
 ## 📖 Table des matières

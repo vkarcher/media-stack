@@ -6,6 +6,11 @@
 **📊 Niveau :** Intermédiaire  
 **🔗 Prérequis :** Radarr installé, Prowlarr configuré, qBittorrent opérationnel
 
+**🔗 Ressources officielles :**
+- [GitHub Radarr](https://github.com/Radarr/Radarr)
+- [Wiki Servarr](https://wiki.servarr.com/radarr)
+- [Discord](https://discord.gg/radarr)
+
 ---
 
 ## 📖 Table des matières

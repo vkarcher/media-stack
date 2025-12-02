@@ -6,6 +6,11 @@
 **📊 Niveau :** Intermédiaire  
 **🔗 Prérequis :** Sonarr installé, Prowlarr configuré, qBittorrent opérationnel
 
+**🔗 Ressources officielles :**
+- [GitHub Sonarr](https://github.com/Sonarr/Sonarr)
+- [Wiki Servarr](https://wiki.servarr.com/sonarr)
+- [Discord](https://discord.gg/sonarr)
+
 ---
 
 ## 📖 Table des matières

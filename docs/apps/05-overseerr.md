@@ -6,6 +6,11 @@
 **📊 Niveau :** Débutant  
 **🔗 Prérequis :** Plex configuré, Radarr/Sonarr opérationnels
 
+**🔗 Ressources officielles :**
+- [GitHub Overseerr](https://github.com/sct/overseerr)
+- [Documentation](https://docs.overseerr.dev/)
+- [Discord](https://discord.gg/overseerr)
+
 ---
 
 ## 📖 Table des matières

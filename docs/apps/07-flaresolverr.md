@@ -6,6 +6,10 @@
 **📊 Niveau :** Intermédiaire  
 **🔗 Prérequis :** Docker installé, Prowlarr configuré
 
+**🔗 Ressources officielles :**
+- [GitHub FlareSolverr](https://github.com/FlareSolverr/FlareSolverr)
+- [Documentation](https://github.com/FlareSolverr/FlareSolverr#readme)
+
 ---
 
 ## 📖 Table des matières
