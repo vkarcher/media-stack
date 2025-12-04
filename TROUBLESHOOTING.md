@@ -2,6 +2,17 @@
 
 ## Installation & Déploiement
 
+### Erreur : "Authentication failed" (Git)
+
+Si vous obtenez `Password authentication is not supported` lors du clonage :
+
+1. **GitHub n'accepte plus les mots de passe.** Vous devez utiliser un **Personal Access Token (PAT)**.
+2. Allez sur [GitHub > Settings > Developer Settings > Personal Access Tokens (Classic)](https://github.com/settings/tokens).
+3. Cliquez sur **Generate new token (classic)**.
+4. Cochez `repo` (pour les dépôts privés) ou juste `public_repo`.
+5. Copiez le token (commence par `ghp_...`).
+6. Utilisez ce token comme **mot de passe** quand Git vous le demande.
+
 ### Le script ne s'exécute pas
 
 ```bash
@@ -14,6 +25,25 @@ bash setup.sh
 # Vérifier si vous êtes root
 sudo -i
 ```
+
+### Impossible d'accéder aux dossiers depuis File Station
+
+Si vous ne voyez pas les dossiers `/volume1/docker`, `/volume1/media`, `/volume1/torrents` dans File Station :
+
+**Cause :** File Station masque les dossiers qui ne sont pas des "Shared Folders" officiels ou qui n'ont pas d'ACL.
+
+**Solution :**
+```bash
+# Depuis SSH en root
+sudo -i
+
+# Ajouter des ACL pour rendre les dossiers visibles dans File Station
+synoacltool -add /volume1/docker "user:admin:allow:rwxpdDaARWcCo:fd--"
+synoacltool -add /volume1/media "user:admin:allow:rwxpdDaARWcCo:fd--"
+synoacltool -add /volume1/torrents "user:admin:allow:rwxpdDaARWcCo:fd--"
+```
+
+Actualisez File Station (F5) et les dossiers devraient apparaître.
 
 ### Les services ne démarre pas
 

@@ -39,7 +39,8 @@ Ce dépôt contient une **documentation ultra-complète** pour débutants :
 - [FlareSolverr](docs/apps/07-flaresolverr.md) — Bypass Cloudflare
 
 ### 🎓 Guides thématiques
-- **[YGGTorrent Setup](docs/guides/yggtorrent-setup.md)** — Installation complète YGG + FlareSolverr
+- **[YGGTorrent Setup (FlareSolverr)](docs/guides/yggtorrent-setup.md)** — Installation complète YGG + FlareSolverr
+- **[YGG-API Setup](docs/guides/ygg-api-setup.md)** — Alternative moderne sans FlareSolverr (recommandé)
 - **[YGGTorrent Profils](docs/guides/yggtorrent-profiles.md)** — 3 configurations (Légit / Équilibré / Risqué)
 - **[Configuration Animés](docs/guides/anime-configuration.md)** — Guide complet pour les animés
 - **[VPN Setup](docs/guides/vpn-setup.md)** — WireGuard pour sécuriser qBittorrent
@@ -145,7 +146,8 @@ Mettre en place un système entièrement automatisé où :
 
 - ✅ **NAS Synology** (DSM 7.2+)
 - ✅ **Freebox** (ou routeur avec redirection de ports)
-- ✅ **Docker / Container Manager** installé sur le NAS
+- ✅ **Docker / Container Manager** (à installer depuis le Centre de Paquets)
+- ✅ **Git Server** (à installer depuis le Centre de Paquets)
 - ✅ **Accès SSH** au NAS
 - ✅ **Plex Media Server** ([Télécharger ici](https://www.plex.tv/fr/media-server-downloads/?cat=nas&plat=synology-dsm72))
 
@@ -226,6 +228,32 @@ Installer WireGuard VPN pour qBittorrent ? (y/n) [n]
 
 **⏱️ Temps : ~2-5 minutes selon la connexion internet**
 
+### Étape 3 : Créer les dossiers partagés (obligatoire pour File Station)
+
+Après l'exécution du script, les dossiers existent mais ne sont **pas visibles dans File Station**. Vous devez les créer en tant que "Shared Folders" via l'interface DSM :
+
+1. **DSM > Panneau de configuration > Dossier partagé** → **Créer**
+
+2. Créez les 2 dossiers partagés suivants :
+
+   | Nom | Emplacement | Description |
+   |-----|-------------|-------------|
+   | `media` | `/volume1/media` | Bibliothèque média (films, séries, animés) |
+   | `torrents` | `/volume1/torrents` | Téléchargements torrent |
+
+   > **Note :** Le dossier `docker` est normalement déjà créé automatiquement par Container Manager.
+
+3. ⚠️ **Si DSM dit que le dossier existe déjà :**
+   - Supprimez d'abord le dossier via SSH : `rm -rf /volume1/media` (par exemple)
+   - Puis créez le Shared Folder via DSM
+   - Les conteneurs Docker recréeront automatiquement les sous-dossiers nécessaires
+
+4. **Définir les permissions** :
+   - Cochez votre utilisateur admin avec accès **Lecture/Écriture**
+   - Vous pouvez masquer ces dossiers du réseau si vous le souhaitez
+
+**✅ Les dossiers apparaîtront désormais dans File Station !**
+
 ---
 
 ## ⚙️ Configuration des applications
@@ -238,7 +266,13 @@ Une fois le script terminé, accédez aux interfaces web pour configurer chaque 
 
 **Identifiants par défaut :**
 - Login : `admin`
-- Password : `adminadmin`
+- Password : *Temporaire* - Consultez les logs Docker pour récupérer le mot de passe initial généré automatiquement
+
+**Récupérer le mot de passe temporaire :**
+```bash
+cd /volume1/docker
+docker-compose logs qbittorrent | grep "temporary password"
+```
 
 **Configuration requise :**
 
@@ -304,7 +338,7 @@ Une fois le script terminé, accédez aux interfaces web pour configurer chaque 
    - Host : `qbittorrent`
    - Port : `8080`
    - Username : `admin`
-   - Password : `adminadmin` (ou votre nouveau mot de passe)
+   - Password : (le mot de passe que vous avez défini après la première connexion)
    - Category : `movies`
 
 4. **Minimum Availability** (Settings > Media Management) :
@@ -335,7 +369,7 @@ Une fois le script terminé, accédez aux interfaces web pour configurer chaque 
    - Host : `qbittorrent`
    - Port : `8080`
    - Username : `admin`
-   - Password : `adminadmin`
+   - Password : (le mot de passe que vous avez défini après la première connexion)
    - Category : `series`
 
 4. **Episode Monitoring** :

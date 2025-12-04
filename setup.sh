@@ -30,6 +30,9 @@ INCLUDE_ANIME=${INCLUDE_ANIME:-y}
 read -p "Installer WireGuard VPN pour qBittorrent ? (y/n) [n] " INCLUDE_VPN
 INCLUDE_VPN=${INCLUDE_VPN:-n}
 
+read -p "Installer FlareSolverr pour YGGTorrent ? (y/n) [n] " INCLUDE_FLARESOLVERR
+INCLUDE_FLARESOLVERR=${INCLUDE_FLARESOLVERR:-n}
+
 echo ""
 
 # Vérifier si on est root
@@ -45,11 +48,13 @@ if [ ! -f /etc/dsm_version ]; then
     echo -e "${YELLOW}⚠️  Non détecté sur Synology (continuant quand même)${NC}"
 fi
 
-# Récupérer les IDs utilisateur/groupe
-PUID=$(id -u | awk '{print $1}')
-PGID=$(id -g | awk '{print $1}')
-if [ -z "$PUID" ]; then PUID=1026; fi
-if [ -z "$PGID" ]; then PGID=100; fi
+# Définir les IDs utilisateur/groupe
+# Sur Synology, les valeurs standards sont :
+# - PUID=1026 (premier utilisateur admin créé sur DSM)
+# - PGID=100 (groupe "users")
+# Si vous avez des IDs différents, modifiez ces valeurs manuellement
+PUID=1026
+PGID=100
 
 echo -e "${GREEN}✓ PUID=$PUID, PGID=$PGID${NC}"
 
@@ -322,6 +327,28 @@ EOF
     echo -e "${YELLOW}💡 Pour utiliser le VPN avec qBittorrent, décommentez 'network_mode' dans docker-compose.yml${NC}"
 fi
 
+# 4.6 Configuration FlareSolverr (optionnel)
+if [[ "$INCLUDE_FLARESOLVERR" == "y" ]] || [[ "$INCLUDE_FLARESOLVERR" == "Y" ]]; then
+    echo -e "${YELLOW}📝 Ajout de FlareSolverr au docker-compose...${NC}"
+    
+    cat >> "$DOCKER_PATH/docker-compose.yml" << 'EOF'
+
+  flaresolverr:
+    image: ghcr.io/flaresolverr/flaresolverr:latest
+    container_name: flaresolverr
+    environment:
+      - LOG_LEVEL=info
+      - LOG_HTML=false
+      - CAPTCHA_SOLVER=none
+      - TZ=Europe/Paris
+    ports:
+      - 8191:8191
+    restart: unless-stopped
+EOF
+    echo -e "${GREEN}✓ FlareSolverr configuré (port 8191)${NC}"
+    echo -e "${YELLOW}💡 Consultez docs/guides/yggtorrent-setup.md pour configurer YGGTorrent${NC}"
+fi
+
 # 5. Lancer les services
 echo -e "${YELLOW}🚀 Lancement des services Docker...${NC}"
 cd "$DOCKER_PATH"
@@ -344,9 +371,12 @@ echo "  Sonarr       → http://<IP_NAS>:8989"
 echo "  Overseerr    → http://<IP_NAS>:5055"
 
 
-
 if [[ "$INCLUDE_VPN" == "y" ]] || [[ "$INCLUDE_VPN" == "Y" ]]; then
     echo "  WireGuard    → Port 51820 (UDP)"
+fi
+
+if [[ "$INCLUDE_FLARESOLVERR" == "y" ]] || [[ "$INCLUDE_FLARESOLVERR" == "Y" ]]; then
+    echo "  FlareSolverr → http://<IP_NAS>:8191"
 fi
 
 echo ""
