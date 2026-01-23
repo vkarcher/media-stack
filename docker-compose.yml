@@ -1,0 +1,161 @@
+version: "3.8"
+
+name: media-stack
+
+services:
+  # ==========================================
+  # 🟢 DASHBOARD (ACCUEIL)
+  # ==========================================
+  homarr:
+    image: ghcr.io/ajnart/homarr:latest
+    container_name: homarr
+    restart: unless-stopped
+    volumes:
+      - ${ROOT_DIR}/docker/homarr/configs:/app/data/configs
+      - ${ROOT_DIR}/docker/homarr/icons:/app/public/icons
+      - /var/run/docker.sock:/var/run/docker.sock # Pour surveiller les conteneurs
+    ports:
+      - ${HOMARR_PORT}:7575
+    environment:
+      - TZ=${TZ}
+      - PUID=${PUID}
+      - PGID=${PGID}
+
+  # ==========================================
+  # 🍿 MÉDIA CENTER & DEMANDES
+  # ==========================================
+  jellyfin:
+    image: jellyfin/jellyfin:latest
+    container_name: jellyfin
+    restart: unless-stopped
+    network_mode: host # Recommandé pour le DLNA et la découverte locale
+    # Si 'host' pose problème, commentez la ligne du dessus et décommentez 'ports':
+    # ports:
+    #   - ${JELLYFIN_PORT}:8096
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+    volumes:
+      - ${ROOT_DIR}/docker/jellyfin/config:/config
+      - ${ROOT_DIR}/docker/jellyfin/cache:/cache
+      # ⚠️ HARDLINK MAGIQUE : On monte /data complet
+      - ${ROOT_DIR}/data:/data
+    devices:
+      # Accélération matérielle (Intel QuickSync)
+      - /dev/dri:/dev/dri
+
+  jellyseerr:
+    image: fallenbagel/jellyseerr:latest
+    container_name: jellyseerr
+    restart: unless-stopped
+    environment:
+      - LOG_LEVEL=debug
+      - TZ=${TZ}
+    ports:
+      - ${JELLYSEERR_PORT}:5055
+    volumes:
+      - ${ROOT_DIR}/docker/jellyseerr/config:/app/config
+
+  # ==========================================
+  # 📥 TÉLÉCHARGEMENT & SOURCES
+  # ==========================================
+  qbittorrent:
+    image: lscr.io/linuxserver/qbittorrent:latest
+    container_name: qbittorrent
+    restart: unless-stopped
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+      - WEBUI_PORT=${QBITTORRENT_WEBUI_PORT}
+    volumes:
+      - ${ROOT_DIR}/docker/qbittorrent/config:/config
+      # ⚠️ HARDLINK MAGIQUE : On monte /data complet pour que qBit pose les fichiers là où les *Arrs les cherchent
+      - ${ROOT_DIR}/data:/data
+    ports:
+      - ${QBITTORRENT_WEBUI_PORT}:${QBITTORRENT_WEBUI_PORT}
+      - ${QBITTORRENT_P2P_PORT}:${QBITTORRENT_P2P_PORT}
+      - ${QBITTORRENT_P2P_PORT}:${QBITTORRENT_P2P_PORT}/udp
+
+  prowlarr:
+    image: lscr.io/linuxserver/prowlarr:latest
+    container_name: prowlarr
+    restart: unless-stopped
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+    volumes:
+      - ${ROOT_DIR}/docker/prowlarr/config:/config
+    ports:
+      - ${PROWLARR_PORT}:9696
+
+  flaresolverr:
+    image: ghcr.io/flaresolverr/flaresolverr:latest
+    container_name: flaresolverr
+    restart: unless-stopped
+    environment:
+      - LOG_LEVEL=info
+      - TZ=${TZ}
+    ports:
+      - ${FLARESOLVERR_PORT}:8191
+
+  # ==========================================
+  # 🤖 AUTOMATISATION (*ARRS)
+  # ==========================================
+  radarr:
+    image: lscr.io/linuxserver/radarr:latest
+    container_name: radarr
+    restart: unless-stopped
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+    volumes:
+      - ${ROOT_DIR}/docker/radarr/config:/config
+      # ⚠️ HARDLINK MAGIQUE : Accès à tout /data
+      - ${ROOT_DIR}/data:/data
+    ports:
+      - ${RADARR_PORT}:7878
+
+  sonarr:
+    image: lscr.io/linuxserver/sonarr:latest
+    container_name: sonarr
+    restart: unless-stopped
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+    volumes:
+      - ${ROOT_DIR}/docker/sonarr/config:/config
+      # ⚠️ HARDLINK MAGIQUE : Accès à tout /data
+      - ${ROOT_DIR}/data:/data
+    ports:
+      - ${SONARR_PORT}:8989
+
+  bazarr:
+    image: lscr.io/linuxserver/bazarr:latest
+    container_name: bazarr
+    restart: unless-stopped
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+    volumes:
+      - ${ROOT_DIR}/docker/bazarr/config:/config
+      # ⚠️ HARDLINK MAGIQUE : Accès à tout /data
+      - ${ROOT_DIR}/data:/data
+    ports:
+      - ${BAZARR_PORT}:6767
+
+  # ==========================================
+  # 🧹 MAINTENANCE
+  # ==========================================
+  watchtower:
+    image: containrrr/watchtower
+    container_name: watchtower
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    command: --schedule "0 2 * * *" --cleanup --include-stopped
