@@ -4,6 +4,15 @@ De zéro à Jellyfin accessible depuis Internet. Comptez une heure la première 
 
 L'ordre n'est pas cosmétique : chaque étape fige des chemins que la suivante consomme.
 
+> **Raccourci** — les étapes 1 à 3 sont automatisées :
+> ```bash
+> cp .env.example .env && $EDITOR .env
+> ./install.sh
+> ```
+> L'installeur crée l'arborescence, les liens `.env`, les réseaux, les gabarits de secrets, et **vérifie la condition des hardlinks**. Il ne démarre rien. Reprenez ensuite à l'étape 4.
+>
+> Les étapes 1 à 3 restent documentées ci-dessous : mieux vaut comprendre ce que le script fait que lui faire confiance.
+
 ---
 
 ## 1. Arborescence

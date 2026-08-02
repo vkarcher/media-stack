@@ -114,7 +114,17 @@ Le transcodage matériel *(`/dev/dri`)* est optionnel mais change tout dès deux
 
 ## Installation
 
-→ **[QUICKSTART.md](QUICKSTART.md)** — de zéro à Jellyfin en ligne.
+```bash
+git clone https://github.com/vkarcher/media-stack.git && cd media-stack
+cp .env.example .env && $EDITOR .env
+./install.sh
+```
+
+`install.sh` prépare l'environnement — arborescence, liens `.env`, réseaux Docker, gabarits de secrets — et **vérifie la condition des hardlinks avant qu'il ne soit trop tard** : si `media/` et `torrents/` ne sont pas sur le même système de fichiers, il s'arrête plutôt que de vous laisser consommer le double d'espace pendant des mois.
+
+Il ne démarre **rien** : le déploiement reste explicite, service par service.
+
+→ **[QUICKSTART.md](QUICKSTART.md)** — la suite, de zéro à Jellyfin en ligne.
 
 ---
 
@@ -129,22 +139,22 @@ Le transcodage matériel *(`/dev/dri`)* est optionnel mais change tout dès deux
 | **[notifications.md](docs/notifications.md)** | ntfy, push iOS, brancher chaque service |
 | **[migration.md](docs/migration.md)** | Reprendre une installation existante sans rien perdre |
 | **[pieges.md](docs/pieges.md)** | Tout ce qui a coûté du temps, et pourquoi |
+| **[optionnel.md](docs/optionnel.md)** | Services optionnels, et ceux à éviter |
 
 ---
 
 ## Pour aller plus loin
 
-Non déployés ici, mais pertinents selon votre situation :
+Présents dans `compose/` mais non déployés par défaut :
 
-**`autobrr`** — écoute les canaux d'annonce IRC des trackers privés et récupère une release **quelques secondes** après sa publication, là où un cycle RSS attend des minutes. Sur un tracker privé, être premier sur un torrent signifie être seeder de référence pour des dizaines de leechers : l'effet sur le ratio n'a aucune commune mesure avec le reste.
+| | |
+|---|---|
+| **`autobrr`** | Récupère une release **quelques secondes** après son annonce IRC. Sur un tracker privé, c'est le plus gros levier de toute la stack. |
+| **`wizarr`** | Liens d'invitation Jellyfin : la personne clique, crée son compte, reçoit les bonnes bibliothèques. |
 
-**`cross-seed`** — trouve, sur d'autres trackers, les torrents correspondant aux fichiers que vous possédez **déjà**. Vous seedez les mêmes données sur plusieurs sources sans télécharger un octet. Demande au moins deux trackers pour avoir du sens.
+Et deux pistes documentées sans compose : **`cross-seed`** *(du ratio sans rien télécharger, mais il faut au moins deux trackers)* et **`Tdarr`** *(transcodage de masse — il réécrit vos fichiers, à ne pas prendre à la légère)*.
 
-**`Wizarr`** — liens d'invitation pour Jellyfin : la personne clique, crée son compte, reçoit les bonnes bibliothèques. Utile dès une dizaine d'utilisateurs.
-
-**`Tdarr`** — transcodage de masse vers H.265. ⚠️ **Il réécrit vos fichiers.** Un profil mal réglé ou un job interrompu, et l'original est perdu. À n'envisager qu'avec une sauvegarde en place, ou en conservant les originaux — ce qui annule le gain d'espace.
-
----
+→ **[docs/optionnel.md](docs/optionnel.md)**, qui liste aussi ce qui **ne vaut pas** le détour, pour vous éviter de l'évaluer.
 
 ## Licence
 

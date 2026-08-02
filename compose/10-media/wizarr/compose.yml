@@ -1,0 +1,28 @@
+name: wizarr
+
+# OPTIONNEL — pertinent dès une dizaine d'utilisateurs.
+#
+# Génère des liens d'invitation pour Jellyfin : la personne clique, crée son
+# compte, reçoit automatiquement les bonnes bibliothèques. Vous arrêtez de
+# créer les comptes à la main et d'expliquer comment se connecter.
+#
+# Gère aussi les invitations à durée limitée et les comptes temporaires.
+
+services:
+  wizarr:
+    image: ghcr.io/wizarrrr/wizarr:2026.7.1
+    container_name: wizarr
+    restart: unless-stopped
+    environment:
+      TZ: ${TZ}
+      APP_URL: https://invite.${DOMAIN}
+      # Wizarr est destiné à être partagé : il doit donc être PUBLIC.
+      # C'est le seul service optionnel dans ce cas — les autres restent en .lan
+    volumes:
+      - ${STACK_ROOT}/appdata/wizarr:/data/database
+    networks: [media]
+    expose: ["5690"]
+
+networks:
+  media:
+    external: true

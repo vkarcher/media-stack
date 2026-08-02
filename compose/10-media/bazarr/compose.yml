@@ -11,7 +11,7 @@ services:
     image: lscr.io/linuxserver/bazarr:1.6.0
     container_name: bazarr
     restart: unless-stopped
-    env_file: [../../common.env]
+    env_file: [../../../common.env]
     volumes:
       - ${STACK_ROOT}/appdata/bazarr:/config
       - ${POOL_ROOT}:/data

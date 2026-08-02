@@ -1,0 +1,34 @@
+name: autobrr
+
+# OPTIONNEL — et le plus gros levier de cette stack si vous êtes sur un
+# tracker privé.
+#
+# autobrr écoute les canaux d'annonce IRC des trackers et récupère une release
+# QUELQUES SECONDES après sa publication, là où un cycle RSS attend des
+# minutes. Sur un tracker privé, être premier signifie être seeder de référence
+# pour des dizaines de leechers : l'effet sur le ratio n'a aucune commune
+# mesure avec le reste de la stack.
+#
+# Prérequis : votre tracker doit avoir un canal d'annonce IRC, et vous devez y
+# avoir accès (clé d'annonce fournie par le tracker).
+#
+# Après démarrage : Settings → Indexers (ajoutez votre tracker), puis
+# Settings → Download Clients → qBittorrent avec l'hôte `gluetun` (voir
+# docs/pieges.md), enfin Filters pour définir ce qui doit être récupéré.
+
+services:
+  autobrr:
+    image: ghcr.io/autobrr/autobrr:v1.83.0
+    container_name: autobrr
+    restart: unless-stopped
+    user: "${PUID}:${PGID}"
+    environment:
+      TZ: ${TZ}
+    volumes:
+      - ${STACK_ROOT}/appdata/autobrr:/config
+    networks: [media]
+    expose: ["7474"]
+
+networks:
+  media:
+    external: true

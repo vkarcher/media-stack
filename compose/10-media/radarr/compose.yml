@@ -5,7 +5,7 @@ services:
     image: lscr.io/linuxserver/radarr:6.3.0
     container_name: radarr
     restart: unless-stopped
-    env_file: [../../common.env]
+    env_file: [../../../common.env]
     volumes:
       - ${STACK_ROOT}/appdata/radarr:/config
       # ⚠️ UN SEUL montage, la RACINE du pool. Deux montages séparés

@@ -44,7 +44,7 @@ services:
     depends_on:
       gluetun:
         condition: service_healthy
-    env_file: [../../common.env]
+    env_file: [../../../common.env]
     environment:
       WEBUI_PORT: 8080
     volumes:
