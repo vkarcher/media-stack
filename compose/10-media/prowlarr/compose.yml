@@ -8,6 +8,8 @@ services:
     env_file: [../../../common.env]
     volumes:
       - ${STACK_ROOT}/appdata/prowlarr:/config
+      - ../_scripts/notify-ntfy.sh:/scripts/notify-ntfy.sh:ro
+      - ${STACK_ROOT}/secrets/ntfy-publisher.env:/run/secrets/ntfy.env:ro
     networks: [media]
     expose: ["9696"]
 

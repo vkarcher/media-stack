@@ -81,6 +81,39 @@ Multiplier les sujets multiplie les abonnements à gérer, sans bénéfice.
 
 ---
 
+## Un format unifié, lisible d'un coup d'œil
+
+L'espace d'affichage d'une notification est court. Le format retenu tient en deux lignes :
+
+```
+🔴 Sonarr    Tous les indexeurs sont indisponibles suite à des échecs
+             ↳ IndexerStatusCheck
+```
+
+**Titre = pastille + application.** Rien d'autre. La gravité est portée par la couleur, pas répétée en mots.
+
+| Pastille | Sens | Priorité ntfy | Effet sur le téléphone |
+|---|---|---|---|
+| 🔴 | panne | 4 | perce le mode silencieux |
+| 🟠 | avertissement | 3 | sonnerie normale |
+| 🟢 | résolu | 2 | **sans bruit** — une résolution n'a pas à réveiller |
+| 🔵 | information | 3 | normale |
+
+⚠️ **Le connecteur Ntfy natif des *arr ne permet pas ce format.** Il impose un titre du type `Sonarr - Health Check Failure` et des tags statiques : impossible de faire varier la pastille selon la gravité.
+
+Passez par leur connecteur **Custom Script**, qui reçoit le type d'événement et le niveau en variables d'environnement. Un script partagé suffit pour les trois applications — voir `compose/10-media/_scripts/notify-ntfy.sh`.
+
+Montez-le en lecture seule, avec les identifiants ntfy :
+
+```yaml
+- ../_scripts/notify-ntfy.sh:/scripts/notify-ntfy.sh:ro
+- ${STACK_ROOT}/secrets/ntfy-publisher.env:/run/secrets/ntfy.env:ro
+```
+
+Les identifiants passent par un fichier monté plutôt que par l'environnement du conteneur : ils n'apparaissent alors pas dans un `docker inspect`.
+
+---
+
 ## Brancher chaque service
 
 ### Sonarr, Radarr

@@ -8,6 +8,8 @@ services:
     env_file: [../../../common.env]
     volumes:
       - ${STACK_ROOT}/appdata/radarr:/config
+      - ../_scripts/notify-ntfy.sh:/scripts/notify-ntfy.sh:ro
+      - ${STACK_ROOT}/secrets/ntfy-publisher.env:/run/secrets/ntfy.env:ro
       # ⚠️ UN SEUL montage, la RACINE du pool. Deux montages séparés
       # (/movies + /downloads) font voir deux systèmes de fichiers au
       # conteneur : le hardlink échoue et radarr copie, doublant l'espace

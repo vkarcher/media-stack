@@ -215,7 +215,57 @@ extra_hosts:
 
 ---
 
-## 16. Les identifiants finissent dans les journaux
+## 16. Une panne d'indexeur génère une avalanche de notifications
+
+Un seul indexeur qui tombe déclenche **trois contrôles de santé distincts** dans Sonarr, et trois autres dans Radarr :
+
+```
+All indexers are unavailable due to failures              ← Erreur
+All search-capable indexers are temporarily unavailable   ← Avertissement
+All rss-capable indexers are temporarily unavailable      ← Avertissement
+```
+
+Ajoutez les messages de résolution, et un incident produit **14 notifications**.
+
+Deux d'entre elles sont des **avertissements** qui redisent l'erreur autrement. Désactivez `includeHealthWarnings` : vous passez à 4 notifications par incident, sans rien perdre d'utile.
+
+> **La cause de fond est ailleurs** : ces contrôles ne se déclenchent tous que si vous n'avez **qu'un seul indexeur**. Avec deux, la chute de l'un ne produit plus aucun message parlant de « tous les indexeurs ». Un second indexeur règle à la fois le bruit et la résilience.
+
+Et gardez les notifications sur les deux applications : leurs problèmes de santé ne se recouvrent pas toujours — un client de téléchargement injoignable ou un dossier racine manquant peut n'affecter qu'une seule.
+
+---
+
+## 17. CrowdSec boucle sur la propriété de ses plugins
+
+**Symptôme :** le conteneur redémarre en boucle avec
+
+```
+plugin at /usr/local/lib/crowdsec/plugins/notification-email
+  is not owned by user 'root'
+```
+
+**Cause :** l'image livre ses plugins de notification appartenant à `999:1000`, alors que CrowdSec exige qu'ils appartiennent à **root** — une protection contre l'élévation de privilèges, puisqu'un plugin est du code exécuté par le démon.
+
+Le message est doublement trompeur : il nomme `notification-email` même si vous ne l'utilisez pas *(les plugins sont vérifiés au chargement du courtier, tous ensemble)*, et il n'apparaît qu'au redémarrage — l'instance en cours continue de tourner sans problème, parfois pendant des semaines.
+
+**Correctif** — extraire les plugins, corriger le propriétaire, les remonter :
+
+```bash
+CID=$(docker create crowdsecurity/crowdsec:v1.7.8)
+docker cp "$CID:/usr/local/lib/crowdsec/plugins/." "$STACK_ROOT/appdata/crowdsec/plugins/"
+docker rm "$CID"
+docker run --rm -v "$STACK_ROOT/appdata/crowdsec/plugins":/p alpine chown -R 0:0 /p
+```
+
+puis dans le compose :
+
+```yaml
+- ${STACK_ROOT}/appdata/crowdsec/plugins:/usr/local/lib/crowdsec/plugins:ro
+```
+
+---
+
+## 18. Les identifiants finissent dans les journaux
 
 Certains services journalisent leur URL de notification **en clair, mot de passe compris**, à chaque envoi. Ce n'est pas configurable.
 
