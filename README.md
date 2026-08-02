@@ -1,105 +1,151 @@
-# 🍿 Ultimate Media Stack (Jellyfin Edition)
+# 🎬 Media Stack
 
-![Homarr Dashboard](https://raw.githubusercontent.com/ajnart/homarr/main/public/imgs/hero-light.png)
-*(Exemple de votre futur tableau de bord Homarr)*
+Stack média auto-hébergée complète : streaming, portail de requêtes, automatisation, reverse proxy, détection d'intrusion, supervision et notifications push.
 
-## 🇫🇷 Introduction
+**Ce dépôt n'est pas une liste de conteneurs.** Des listes de conteneurs, il en existe des centaines. Ce qu'il contient en plus, c'est **la raison de chaque choix** et **les pièges qui coûtent des heures** — ceux qui n'apparaissent dans aucun guide parce qu'on ne les découvre qu'en le faisant réellement.
 
-Bienvenue sur la **Media Stack Ultime**. Ce projet a pour but de vous aider à monter un serveur média autonome (type "Netflix Perso") le plus simplement possible, avec une orientation 100% **Qualité** et **Facilité d'utilisation** (Facteur WAF validé ✅).
-
-**Pourquoi cette stack ?**
-- **100% Automatisée** : Vous demandez un film sur votre téléphone, il est téléchargé, trié et disponible sur votre TV tout seul.
-- **Gratuit & Open Source** : Pas d'abonnement Plex Pass nécessaire.
-- **Optimisée** : Utilise les "Hardlinks" pour ne pas dupliquer les fichiers et économiser l'espace disque.
-- **Support Français** : Pré-configurée pour récupérer du contenu VFF/TRUEFRENCH de qualité.
+Si vous ne lisez qu'un seul document, lisez **[docs/hardlinks.md](docs/hardlinks.md)**. C'est l'erreur qui fait consommer le double d'espace disque à 90 % des installations.
 
 ---
 
-## 📦 Le Contenu
+## Ce qui tourne
 
-Votre serveur va tourner avec ces applications (conteneurs Docker) :
+| Rôle | Services |
+|---|---|
+| **Streaming** | Jellyfin, Seerr *(ex-Jellyseerr)* |
+| **Automatisation** | Sonarr, Radarr, Prowlarr, Bazarr, Recyclarr, Cleanuparr |
+| **Téléchargement** | qBittorrent derrière Gluetun *(VPN, kill-switch)*, Flaresolverr |
+| **Accès** | Nginx Proxy Manager, certificats wildcard Let's Encrypt |
+| **Sécurité** | CrowdSec + bouncer pare-feu |
+| **Supervision** | Gatus, Scrutiny *(SMART)*, ntfy *(push mobile)*, Arcane *(UI Docker)* |
 
-| Application | Rôle |
-|-------------|------|
-| **🏠 Homarr** | **Votre accueil**. Un beau tableau de bord pour accéder à tout. |
-| **🍿 Jellyfin** | Le lecteur (comme Netflix). Lit tout, partout (TV, Mobile, Web). |
-| **🔍 Jellyseerr** | Le catalogue. C'est là que vous et votre famille demandez "Je veux voir ce film". |
-| **🤖 Sonarr** | Gère les Séries (recherche, renommage, qualité). |
-| **🤖 Radarr** | Gère les Films. |
-| **⚡ qBittorrent** | Le logiciel de téléchargement. |
-| **🔎 Prowlarr** | Connecte Sonarr/Radarr à vos sites de torrents (YGG, etc). |
-| **🔧 FlareSolverr** | Débloque les protections Cloudflare de certains sites. |
+Dix-neuf conteneurs, **tous à version épinglée**, un fichier compose par unité.
 
 ---
 
-## 🚀 Installation Rapide
+## Architecture
 
-### Prérequis
-- Un NAS Synology (ou tout serveur Linux/Docker).
-- Accès SSH (Terminal).
-
-### 1. Télécharger le projet
-Connectez-vous à votre NAS en SSH et allez dans votre volume :
-```bash
-cd /volume1
-git clone https://github.com/vkarcher/media-stack.git
-cd media-stack
+```
+                          Internet
+                             │
+                    ┌────────┴────────┐
+                    │   443  ·  80    │   ← seuls ports redirigés
+                    └────────┬────────┘
+                             │
+                    ┌────────▼────────┐
+                    │      NPM        │  seul conteneur qui publie des ports
+                    │  reverse proxy  │  seul conteneur multi-réseaux
+                    └───┬─────────┬───┘
+             ┌──────────┘         └──────────┐
+        ┌────▼─────┐                   ┌─────▼─────┐
+        │  media   │                   │ monitoring│
+        ├──────────┤                   ├───────────┤
+        │ jellyfin │                   │ gatus     │
+        │ seerr    │                   │ scrutiny  │
+        │ sonarr   │                   │ arcane    │
+        │ radarr   │                   │ crowdsec  │
+        │ prowlarr │                   └───────────┘
+        │ bazarr   │
+        │ gluetun ─┼── qbittorrent (network_mode: service:gluetun)
+        └──────────┘
 ```
 
-### 2. Configurer
-Créez votre fichier de configuration à partir de l'exemple :
-```bash
-cp .env.example .env
+**Trois règles structurent tout :**
+
+1. **Seul le reverse proxy publie des ports.** Tous les autres services restent en `expose` et ne sont joignables que par lui, à travers le réseau Docker. Résultat : aucun port à mémoriser, aucun conflit possible, et `ss -tlnp` sur l'hôte reste presque vide.
+
+2. **Un compose par unité, jamais un monolithe.** Une unité = un service + ses dépendances privées. Un compose géant rend impossible l'arrêt d'un seul service depuis une interface — la plupart traitent un projet compose comme un bloc indivisible.
+
+3. **Un montage `/data` unique** pour tout ce qui déplace des fichiers. C'est la condition des hardlinks. Voir [docs/hardlinks.md](docs/hardlinks.md).
+
+---
+
+## Les décisions qui comptent
+
+### Un seul point de montage pour le média
+
+```yaml
+# ❌ Deux montages = le conteneur voit DEUX systèmes de fichiers
+- /pool/media/movies:/movies
+- /pool/torrents:/downloads
+
+# ✅ Un seul montage, la racine du pool
+- /pool:/data
 ```
-Ouvrez le fichier `.env` (avec `vi .env` ou l'éditeur texte de Synology) et modifiez si besoin (Timezone, PUID...).
 
-### 3. Préparer les dossiers
-Lancez le script magique qui va créer les dossiers `/data` et régler les permissions :
-```bash
-sudo bash setup.sh
-```
+Avec deux montages, Radarr constate deux périphériques différents, **abandonne le hardlink et copie**. Chaque film occupe alors deux fois la place : une copie seedée, une copie dans la bibliothèque. Sur 300 films, c'est plusieurs téraoctets perdus — et on ne s'en aperçoit qu'à disque plein.
 
-### 4. Démarrer !
-```bash
-sudo docker-compose up -d
-```
-Attendez quelques minutes que tout démarre.
+→ **[docs/hardlinks.md](docs/hardlinks.md)** : le détail, et surtout **comment vérifier** qu'un hardlink a réellement fonctionné.
 
----
+### Le scratch de téléchargement va sur le disque lent, pas sur le SSD
 
-## 🏠 Accès à vos services
+Contre-intuitif, et pourtant :
 
-Une fois lancé, tout est accessible via l'IP de votre NAS.
-Commencez par configurer **Homarr** pour avoir tout sous la main !
+| | Emplacement | Pourquoi |
+|---|---|---|
+| `incomplete` *(téléchargement)* | **pool HDD** | À la fin du torrent, le fichier est **déplacé** vers `complete`. Sur un autre système de fichiers, ce déplacement devient une copie intégrale. |
+| Cache de transcodage | **SSD** | Jetable, jamais déplacé, écritures aléatoires. |
 
-- **Homarr (Accueil)** : `http://<IP-NAS>:7575`
-- **Jellyfin** : `http://<IP-NAS>:8096`
-- **Jellyseerr** : `http://<IP-NAS>:5055`
-- **qBittorrent** : `http://<IP-NAS>:8080` (Login: `admin` / mdp: voir logs ou `adminadmin`)
+Le critère n'est pas « gros ou petit », c'est **« sera-t-il déplacé ? »**. Un cache ne l'est jamais, un téléchargement toujours.
 
----
+### Tags d'image figés, jamais `:latest`
 
-## 📚 Documentation Détaillée
+`:latest` transforme chaque `docker compose pull` en loterie. Une montée de version majeure passe inaperçue jusqu'à ce qu'un service refuse de démarrer avec une base migrée dans un sens irréversible — c'est précisément ce qui rend une restauration impossible.
 
-Besoin d'aide pour configurer une app précise ?
+**Ne déployez pas Watchtower en mise à jour automatique.** Utilisez un notificateur (diun, ou les connecteurs `OnApplicationUpdate` de Sonarr/Radarr) : vous êtes prévenu, vous bumpez le tag, vous committez. La mise à jour devient une décision tracée.
 
-- [📕 **Guide de Démarrage (Pas à Pas)**](QUICKSTART.md) *(Recommandé pour débutants)*
-- [🦅 **Configuration Freebox & Accès Distance**](docs/freebox.md)
-- [🧩 **Exemples Modulaires**](docker/README.md) *(Pour prendre juste un bout de la stack)*
-- [⚙️ Configuration Homarr](docs/homarr.md)
-- [🍿 Configuration Jellyfin & Transcodage](docs/jellyfin.md)
-- [🤖 Configuration Sonarr/Radarr (Profils FR)](docs/arr-stack.md)
+### Les secrets ne sont jamais dans un compose
+
+Le compose est versionné. Les secrets vivent dans `.env` *(interpolation)* ou `secrets/` *(fichiers montés)*, tous deux exclus de git. `.env.example` liste les clés attendues avec des valeurs vides : c'est votre documentation de ce qu'il faut fournir pour redéployer.
 
 ---
 
-## 💡 Astuces "Pro"
+## Prérequis
 
-### C'est quoi les "Hardlinks" ?
-Cette stack utilise un volume unique `/data`.
-- Téléchargement : `/data/torrents/complete/Film.mkv`
-- Médiathèque : `/data/media/movies/Film (2024).mkv`
+- Un hôte Linux avec Docker et le plugin Compose
+- Un nom de domaine, avec un DNS où vous pouvez créer des enregistrements
+- **Un seul système de fichiers** pour `media/` et `torrents/` *(voir hardlinks)*
+- Un abonnement VPN compatible [gluetun](https://github.com/qdm12/gluetun-wiki) si vous passez par du torrent
+- De la RAM : le cache disque évite l'essentiel des accès aux plateaux. 16 Go confortable, 8 Go suffisant.
 
-Grâce aux *Hardlinks*, le fichier n'est **pas copié**. Il est "vu" à deux endroits mais ne prend la place que d'une seule fois sur le disque ! Le déplacement est instantané.
-⚠️ **Important** : Dans Sonarr/Radarr, quand on vous demande le chemin, naviguez toujours dans `/data/...`.
+Le transcodage matériel *(`/dev/dri`)* est optionnel mais change tout dès deux flux simultanés.
 
 ---
+
+## Installation
+
+→ **[QUICKSTART.md](QUICKSTART.md)** — de zéro à Jellyfin en ligne.
+
+---
+
+## Documentation
+
+| Document | Contenu |
+|---|---|
+| **[hardlinks.md](docs/hardlinks.md)** | Le piège n°1, et la méthode de vérification |
+| **[architecture.md](docs/architecture.md)** | Réseaux, nommage, découpage des compose |
+| **[reverse-proxy.md](docs/reverse-proxy.md)** | Wildcards, DNS-01, sous-domaines privés, le port 80 |
+| **[securite.md](docs/securite.md)** | CrowdSec, `DOCKER-USER`, ce qui bloque réellement |
+| **[notifications.md](docs/notifications.md)** | ntfy, push iOS, brancher chaque service |
+| **[migration.md](docs/migration.md)** | Reprendre une installation existante sans rien perdre |
+| **[pieges.md](docs/pieges.md)** | Tout ce qui a coûté du temps, et pourquoi |
+
+---
+
+## Pour aller plus loin
+
+Non déployés ici, mais pertinents selon votre situation :
+
+**`autobrr`** — écoute les canaux d'annonce IRC des trackers privés et récupère une release **quelques secondes** après sa publication, là où un cycle RSS attend des minutes. Sur un tracker privé, être premier sur un torrent signifie être seeder de référence pour des dizaines de leechers : l'effet sur le ratio n'a aucune commune mesure avec le reste.
+
+**`cross-seed`** — trouve, sur d'autres trackers, les torrents correspondant aux fichiers que vous possédez **déjà**. Vous seedez les mêmes données sur plusieurs sources sans télécharger un octet. Demande au moins deux trackers pour avoir du sens.
+
+**`Wizarr`** — liens d'invitation pour Jellyfin : la personne clique, crée son compte, reçoit les bonnes bibliothèques. Utile dès une dizaine d'utilisateurs.
+
+**`Tdarr`** — transcodage de masse vers H.265. ⚠️ **Il réécrit vos fichiers.** Un profil mal réglé ou un job interrompu, et l'original est perdu. À n'envisager qu'avec une sauvegarde en place, ou en conservant les originaux — ce qui annule le gain d'espace.
+
+---
+
+## Licence
+
+MIT. Faites-en ce que vous voulez.

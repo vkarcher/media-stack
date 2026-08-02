@@ -1,0 +1,27 @@
+name: gatus
+
+# Supervision de disponibilité, alertes vers ntfy.
+# Multi-réseaux par nécessité : une sonde doit joindre ce qu'elle surveille.
+# C'est la seule exception assumée à la règle qui réserve ce statut au proxy.
+
+services:
+  gatus:
+    image: twinproduction/gatus:v5.36.0
+    container_name: gatus
+    restart: unless-stopped
+    environment:
+      TZ: ${TZ}
+    # Identifiants ntfy : hors dépôt et hors .env partagé.
+    env_file:
+      - ${STACK_ROOT}/secrets/ntfy-publisher.env
+    volumes:
+      - ./config.yaml:/config/config.yaml:ro
+      - ${STACK_ROOT}/appdata/gatus:/data
+    networks: [monitoring, media]
+    expose: ["8080"]
+
+networks:
+  monitoring:
+    external: true
+  media:
+    external: true

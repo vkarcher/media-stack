@@ -1,0 +1,20 @@
+name: flaresolverr
+
+# Contourne les protections anti-bot de certains indexeurs. Sans état.
+# Se déclare comme « proxy indexeur » dans Prowlarr : http://flaresolverr:8191
+
+services:
+  flaresolverr:
+    image: ghcr.io/flaresolverr/flaresolverr:v3.5.0
+    container_name: flaresolverr
+    restart: unless-stopped
+    environment:
+      TZ: ${TZ}
+      LOG_LEVEL: info
+      CAPTCHA_SOLVER: none
+    networks: [media]
+    expose: ["8191"]
+
+networks:
+  media:
+    external: true

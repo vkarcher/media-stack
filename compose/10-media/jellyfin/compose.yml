@@ -1,0 +1,27 @@
+name: jellyfin
+
+services:
+  jellyfin:
+    image: jellyfin/jellyfin:10.11.11
+    container_name: jellyfin
+    restart: unless-stopped
+    environment:
+      TZ: ${TZ}
+      JELLYFIN_PublishedServerUrl: https://${JELLYFIN_SUBDOMAIN}.${DOMAIN}
+    volumes:
+      - ${STACK_ROOT}/appdata/jellyfin:/config
+      # ⚠️ Jellyfin identifie ses fichiers PAR CHEMIN. Si vous migrez depuis une
+      # installation existante, montez le média au chemin qu'utilisait l'ancienne
+      # instance : users, historique et reprises de lecture restent valides.
+      # Jellyfin n'a aucun besoin de hardlink (il ne fait que lire), il peut donc
+      # garder un chemin différent des *arr. Voir docs/migration.md.
+      - ${POOL_ROOT}/media:/media
+    devices:
+      # Transcodage matériel Intel/AMD. Retirer si absent.
+      - /dev/dri:/dev/dri
+    networks: [media]
+    expose: ["8096"]
+
+networks:
+  media:
+    external: true

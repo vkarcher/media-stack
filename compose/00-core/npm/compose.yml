@@ -1,0 +1,31 @@
+name: npm
+
+# Nginx Proxy Manager : le SEUL conteneur qui publie des ports, et le seul
+# présent dans plusieurs réseaux. Tous les autres services restent en `expose`
+# et ne sont joignables que par lui. Voir docs/architecture.md.
+
+services:
+  npm:
+    image: jc21/nginx-proxy-manager:2.15.1
+    container_name: npm
+    restart: unless-stopped
+    environment:
+      TZ: ${TZ}
+    volumes:
+      - ${STACK_ROOT}/appdata/npm/data:/data
+      - ${STACK_ROOT}/appdata/npm/letsencrypt:/etc/letsencrypt
+    ports:
+      # ⚠️ Si le port 80 de l'hôte est occupé (interface d'un OS de NAS, par
+      # exemple), mettez NPM_HTTP_PORT=8180 et faites pointer la redirection
+      # WAN 80 dessus. Le côté WAN doit rester 80 : c'est ce que composent les
+      # navigateurs.
+      - "${NPM_HTTP_PORT}:80"
+      - "${NPM_HTTPS_PORT}:443"
+      - "${NPM_ADMIN_PORT}:81"   # admin — ne JAMAIS rediriger depuis Internet
+    networks: [media, monitoring]
+
+networks:
+  media:
+    external: true
+  monitoring:
+    external: true

@@ -1,0 +1,33 @@
+name: crowdsec
+
+# Détection d'intrusion sur les journaux du reverse proxy et de Jellyfin.
+# Un service exposé reçoit des scans quotidiens dès le premier jour — ce n'est
+# pas une hypothèse, c'est mesurable dans les journaux.
+
+services:
+  crowdsec:
+    image: crowdsecurity/crowdsec:v1.7.8
+    container_name: crowdsec
+    restart: unless-stopped
+    environment:
+      TZ: ${TZ}
+      COLLECTIONS: "crowdsecurity/nginx crowdsecurity/base-http-scenarios crowdsecurity/http-cve LePresidente/jellyfin"
+    volumes:
+      - ${STACK_ROOT}/appdata/crowdsec/config:/etc/crowdsec
+      - ${STACK_ROOT}/appdata/crowdsec/data:/var/lib/crowdsec/data
+      - ${STACK_ROOT}/appdata/npm/data/logs:/var/log/npm:ro
+      - ${STACK_ROOT}/appdata/jellyfin/log:/var/log/jellyfin:ro
+      - ./acquis.yaml:/etc/crowdsec/acquis.d/npm.yaml:ro
+      - ./acquis-jellyfin.yaml:/etc/crowdsec/acquis.d/jellyfin.yaml:ro
+      - ./whitelist.yaml:/etc/crowdsec/parsers/s02-enrich/whitelist-local.yaml:ro
+    networks: [monitoring]
+    expose: ["8080"]
+    ports:
+      # Le bouncer tourne en network_mode host (il pilote le pare-feu de la
+      # machine) et ne peut donc pas résoudre « crowdsec ». On publie la LAPI
+      # sur la boucle locale UNIQUEMENT — jamais joignable depuis le réseau.
+      - "127.0.0.1:8090:8080"
+
+networks:
+  monitoring:
+    external: true

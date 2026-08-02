@@ -1,0 +1,21 @@
+name: crowdsec-bouncer
+
+# Applique les décisions de CrowdSec dans le pare-feu de l'hôte.
+# Aucune image officielle n'est publiée : construite depuis le binaire GitHub.
+
+services:
+  crowdsec-bouncer:
+    build:
+      context: .
+      args:
+        VERSION: v0.0.34
+    image: local/crowdsec-firewall-bouncer:0.0.34
+    container_name: crowdsec-bouncer
+    restart: unless-stopped
+    # Réseau de l'hôte : indispensable pour manipuler son pare-feu.
+    network_mode: host
+    cap_add: [NET_ADMIN, NET_RAW]
+    environment:
+      TZ: ${TZ}
+    volumes:
+      - ${STACK_ROOT}/appdata/crowdsec-bouncer:/etc/crowdsec/bouncers

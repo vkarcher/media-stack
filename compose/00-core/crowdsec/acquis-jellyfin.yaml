@@ -1,0 +1,7 @@
+# Journaux applicatifs de Jellyfin : détection de bruteforce sur le login.
+# Les scénarios nginx ne couvrent PAS ce cas — un bruteforce lent sur une
+# authentification ne produit aucun motif de sondage HTTP.
+filenames:
+  - /var/log/jellyfin/*.log
+labels:
+  type: jellyfin

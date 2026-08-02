@@ -1,0 +1,24 @@
+name: cleanuparr
+
+# Supprime les téléchargements bloqués, les faux fichiers et les torrents sans
+# source. Sans lui, ça s'accumule en silence dans qBittorrent.
+# Connexions à qBittorrent et aux *arr à faire dans son interface.
+
+services:
+  cleanuparr:
+    image: ghcr.io/cleanuparr/cleanuparr:2.10.2
+    container_name: cleanuparr
+    restart: unless-stopped
+    environment:
+      TZ: ${TZ}
+      PORT: 11011
+      PUID: ${PUID}
+      PGID: ${PGID}
+    volumes:
+      - ${STACK_ROOT}/appdata/cleanuparr:/config
+    networks: [media]
+    expose: ["11011"]
+
+networks:
+  media:
+    external: true

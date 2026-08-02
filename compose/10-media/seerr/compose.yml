@@ -1,0 +1,25 @@
+name: seerr
+
+# Anciennement Jellyseerr. Overseerr et Jellyseerr ont fusionné en « Seerr »
+# (v3.0.0, février 2026) : dépôt seerr-team/seerr, registre ghcr.io.
+# L'ancien fallenbagel/jellyseerr sur Docker Hub n'est plus mis à jour.
+
+services:
+  seerr:
+    image: ghcr.io/seerr-team/seerr:v3.4.1
+    container_name: seerr
+    restart: unless-stopped
+    init: true          # requis par l'image
+    environment:
+      TZ: ${TZ}
+      LOG_LEVEL: info
+    volumes:
+      # Le conteneur tourne en non-root (UID 1000) : ce dossier doit lui
+      # appartenir. docker run --rm -v <dossier>:/d alpine chown -R 1000:1000 /d
+      - ${STACK_ROOT}/appdata/seerr:/app/config
+    networks: [media]
+    expose: ["5055"]
+
+networks:
+  media:
+    external: true

@@ -1,0 +1,23 @@
+name: bazarr
+
+# Sous-titres. Même montage /data unique que les *arr : Bazarr écrit les .srt
+# à côté des fichiers média.
+#
+# ⚠️ Bazarr ne télécharge RIEN tant qu'il n'a pas au moins un fournisseur
+# configuré (OpenSubtitles, etc. — compte requis) ET un profil de langue.
+
+services:
+  bazarr:
+    image: lscr.io/linuxserver/bazarr:1.6.0
+    container_name: bazarr
+    restart: unless-stopped
+    env_file: [../../common.env]
+    volumes:
+      - ${STACK_ROOT}/appdata/bazarr:/config
+      - ${POOL_ROOT}:/data
+    networks: [media]
+    expose: ["6767"]
+
+networks:
+  media:
+    external: true

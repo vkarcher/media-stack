@@ -1,0 +1,6 @@
+# Journal produit par le log_format « crowdsec » de NPM (format nginx standard).
+# Les journaux natifs de NPM ne sont PAS lisibles par les parseurs CrowdSec.
+filenames:
+  - /var/log/npm/crowdsec_access.log
+labels:
+  type: nginx

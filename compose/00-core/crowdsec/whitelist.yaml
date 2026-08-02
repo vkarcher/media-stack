@@ -1,0 +1,12 @@
+name: local/whitelist
+description: "Ne jamais bannir le réseau local ni le VPN"
+# INDISPENSABLE : sans cette liste, un faux positif peut vous couper l'accès
+# à votre propre serveur. Couvre aussi le cas du NAT en épingle, où une requête
+# venue du LAN vers un hôte public apparaît avec l'IP de la box.
+whitelist:
+  reason: "reseau local, VPN et plages privees"
+  cidr:
+    - "192.168.0.0/16"
+    - "10.0.0.0/8"
+    - "172.16.0.0/12"
+    - "127.0.0.1/32"

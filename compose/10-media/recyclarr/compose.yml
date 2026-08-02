@@ -1,0 +1,29 @@
+name: recyclarr
+
+# Synchronise les profils de qualité et formats personnalisés des TRaSH Guides
+# vers Sonarr et Radarr. Effet : les *arr cessent de récupérer des releases
+# mal encodées.
+#
+# ⚠️ Lisez docs/pieges.md avant la première synchro : recyclarr modifie les
+# définitions de taille, qui sont GLOBALES, et peut remplacer un format
+# personnalisé existant portant le même nom.
+
+services:
+  recyclarr:
+    image: ghcr.io/recyclarr/recyclarr:8.7.0
+    container_name: recyclarr
+    restart: unless-stopped
+    user: "${PUID}:${PGID}"
+    environment:
+      TZ: ${TZ}
+      CRON_SCHEDULE: "0 4 * * *"
+    # Clés d'API de Sonarr et Radarr — hors dépôt.
+    env_file:
+      - ${STACK_ROOT}/secrets/recyclarr.env
+    volumes:
+      - ${STACK_ROOT}/appdata/recyclarr:/config
+    networks: [media]
+
+networks:
+  media:
+    external: true

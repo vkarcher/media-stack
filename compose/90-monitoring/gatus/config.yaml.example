@@ -1,0 +1,65 @@
+# À copier en config.yaml. Alerte après 3 échecs, résolution après 2 succès :
+# le seuil évite d'être réveillé pour un hoquet réseau.
+
+storage:
+  type: sqlite
+  path: /data/data.db
+
+alerting:
+  ntfy:
+    url: "${NTFY_URL}"
+    topic: "${NTFY_TOPIC}"
+    priority: 4
+    username: "${NTFY_USER}"
+    password: "${NTFY_PASSWORD}"
+    default-alert:
+      failure-threshold: 3
+      success-threshold: 2
+      send-on-resolved: true
+
+endpoints:
+  # --- Exposés publiquement : ceux qui comptent pour vos utilisateurs
+  - name: Jellyfin
+    group: public
+    url: "https://stream.VOTRE-DOMAINE/health"
+    interval: 2m
+    conditions: ["[STATUS] < 400"]
+    alerts: [{type: ntfy}]
+
+  - name: Seerr
+    group: public
+    url: "https://request.VOTRE-DOMAINE/api/v1/status"
+    interval: 5m
+    conditions: ["[STATUS] == 200"]
+    alerts: [{type: ntfy}]
+
+  # --- Internes : joints par nom de conteneur, sans passer par le proxy
+  - name: Sonarr
+    group: interne
+    url: "http://sonarr:8989/ping"
+    interval: 5m
+    conditions: ["[STATUS] == 200"]
+    alerts: [{type: ntfy}]
+
+  - name: Radarr
+    group: interne
+    url: "http://radarr:7878/ping"
+    interval: 5m
+    conditions: ["[STATUS] == 200"]
+    alerts: [{type: ntfy}]
+
+  - name: Prowlarr
+    group: interne
+    url: "http://prowlarr:9696/ping"
+    interval: 5m
+    conditions: ["[STATUS] == 200"]
+    alerts: [{type: ntfy}]
+
+  # Si gluetun tombe, qBittorrent perd toute route réseau : le surveiller
+  # revient à surveiller le tunnel.
+  - name: Tunnel VPN
+    group: interne
+    url: "http://gluetun:8080/"
+    interval: 5m
+    conditions: ["[STATUS] < 500", "[RESPONSE_TIME] < 3000"]
+    alerts: [{type: ntfy}]

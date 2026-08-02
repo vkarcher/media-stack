@@ -1,0 +1,34 @@
+name: arcane
+
+# Interface de gestion Docker (Go + SvelteKit). Alternative moderne à Portainer.
+#
+# ⚠️ Détient le socket Docker : c'est l'ÉQUIVALENT DE ROOT sur la machine.
+# Réseau interne uniquement, jamais de proxy host public.
+#
+# Identifiants au premier démarrage : ils sont écrits dans le journal du
+# conteneur (docker logs arcane | grep -i password), PAS admin/admin.
+
+services:
+  arcane:
+    image: ghcr.io/getarcaneapp/manager:v2.6.0
+    container_name: arcane
+    restart: unless-stopped
+    cgroup: host
+    environment:
+      TZ: ${TZ}
+      APP_URL: https://arcane.lan.${DOMAIN}
+      PUID: ${PUID}
+      PGID: ${PGID}
+    # ENCRYPTION_KEY (32 octets) et JWT_SECRET — générer avec :
+    #   python3 -c "import secrets; print(secrets.token_hex(32))"
+    env_file:
+      - ${STACK_ROOT}/secrets/arcane.env
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ${STACK_ROOT}/appdata/arcane:/app/data
+    networks: [monitoring]
+    expose: ["3552"]
+
+networks:
+  monitoring:
+    external: true

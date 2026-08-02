@@ -1,0 +1,20 @@
+# À copier dans $STACK_ROOT/appdata/crowdsec-bouncer/crowdsec-firewall-bouncer.yaml
+# La clé s'obtient avec : docker exec crowdsec cscli bouncers add firewall-bouncer
+
+mode: iptables
+update_frequency: 10s
+log_mode: stdout
+log_level: info
+api_url: http://127.0.0.1:8090/
+api_key: COLLEZ_LA_CLE_ICI
+disable_ipv6: false
+deny_action: DROP
+deny_log: false
+
+iptables_chains:
+  - INPUT
+  - FORWARD
+  # ⚠️ DOCKER-USER est la chaîne DÉCISIVE : le trafic vers les conteneurs est
+  # routé (DNAT) et ne traverse JAMAIS INPUT. Sans elle, le bouncer tourne,
+  # affiche des règles, et ne bloque rien. C'est une panne silencieuse.
+  - DOCKER-USER

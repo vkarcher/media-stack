@@ -1,0 +1,26 @@
+# À copier en server.yml et adapter. Documentation : https://docs.ntfy.sh/config/
+
+base-url: "https://ntfy.VOTRE-DOMAINE"
+listen-http: ":80"
+
+# Le reverse proxy est devant : fait confiance à X-Forwarded-For pour que la
+# limitation de débit s'applique à la vraie IP cliente, pas à celle du proxy.
+behind-proxy: true
+
+# ⚠️ RELAIS APNs POUR iOS. Sans cette ligne, AUCUNE notification n'arrive sur
+# iPhone depuis un serveur auto-hébergé — Apple impose son propre canal push.
+#
+# Ce qui transite par ntfy.sh : un ping de réveil SANS contenu. L'iPhone est
+# réveillé, puis vient chercher le message sur VOTRE serveur. Les alertes
+# elles-mêmes ne quittent jamais votre machine.
+upstream-base-url: "https://ntfy.sh"
+
+# Instance publique : personne ne lit ni n'écrit sans compte.
+auth-file: "/var/lib/ntfy/user.db"
+auth-default-access: "deny-all"
+enable-signup: false
+enable-login: true
+
+cache-file: "/var/lib/ntfy/cache.db"
+cache-duration: "12h"
+attachment-cache-dir: "/var/lib/ntfy/attachments"

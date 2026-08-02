@@ -1,0 +1,21 @@
+name: radarr
+
+services:
+  radarr:
+    image: lscr.io/linuxserver/radarr:6.3.0
+    container_name: radarr
+    restart: unless-stopped
+    env_file: [../../common.env]
+    volumes:
+      - ${STACK_ROOT}/appdata/radarr:/config
+      # ⚠️ UN SEUL montage, la RACINE du pool. Deux montages séparés
+      # (/movies + /downloads) font voir deux systèmes de fichiers au
+      # conteneur : le hardlink échoue et radarr copie, doublant l'espace
+      # consommé. Lisez docs/hardlinks.md — c'est LE piège de cette stack.
+      - ${POOL_ROOT}:/data
+    networks: [media]
+    expose: ["7878"]
+
+networks:
+  media:
+    external: true

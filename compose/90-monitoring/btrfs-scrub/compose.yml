@@ -1,0 +1,29 @@
+name: btrfs-scrub
+
+# OPTIONNEL — uniquement si votre pool est en btrfs.
+#
+# Le scrub relit l'intégralité des données et vérifie leurs sommes de contrôle :
+# il détecte la corruption silencieuse (bit rot), ce que mdadm ne sait pas faire.
+#
+# ⚠️ En profil de données « single », le scrub DÉTECTE sans pouvoir réparer les
+# données (aucune copie). Les métadonnées en DUP, elles, se réparent.
+#
+# Image construite localement : évite un apk add à chaque démarrage et reste
+# reproductible depuis le dépôt seul.
+
+services:
+  btrfs-scrub:
+    build: .
+    image: local/btrfs-scrub:1.0
+    container_name: btrfs-scrub
+    restart: unless-stopped
+    # Conteneur privilégié mais sans aucun besoin réseau : on le lui retire.
+    network_mode: none
+    cap_add: [SYS_ADMIN]     # requis par l'ioctl de scrub
+    devices:
+      - /dev/sda:/dev/sda    # adapter
+    environment:
+      TZ: ${TZ}
+    volumes:
+      - ${POOL_ROOT}:/pool
+      - ${STACK_ROOT}/appdata/btrfs-scrub:/var/log/scrub

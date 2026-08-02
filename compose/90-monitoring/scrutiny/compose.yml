@@ -1,0 +1,32 @@
+name: scrutiny
+
+# Surveillance SMART. Priorité haute si vous n'avez pas de redondance ni de
+# sauvegarde : l'alerte précoce est alors la SEULE protection contre une panne.
+
+services:
+  scrutiny:
+    image: ghcr.io/analogj/scrutiny:v0.9.2-omnibus
+    container_name: scrutiny
+    restart: unless-stopped
+    cap_add:
+      - SYS_RAWIO      # smartctl sur les disques SATA
+      - SYS_ADMIN      # requis EN PLUS pour le SMART NVMe
+    devices:
+      # Adapter à vos disques. Pour un NVMe, passer le device de contrôle
+      # (/dev/nvme0) et non seulement l'espace de noms (/dev/nvme0n1) :
+      # c'est le premier que smartctl interroge.
+      - /dev/sda:/dev/sda
+      # - /dev/nvme0:/dev/nvme0
+      # - /dev/nvme0n1:/dev/nvme0n1
+    environment:
+      TZ: ${TZ}
+    volumes:
+      - /run/udev:/run/udev:ro       # identification des disques
+      - ${STACK_ROOT}/appdata/scrutiny/config:/opt/scrutiny/config
+      - ${STACK_ROOT}/appdata/scrutiny/influxdb:/opt/scrutiny/influxdb
+    networks: [monitoring]
+    expose: ["8080"]
+
+networks:
+  monitoring:
+    external: true

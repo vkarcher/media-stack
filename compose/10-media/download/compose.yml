@@ -1,0 +1,59 @@
+name: download
+
+# gluetun et qbittorrent sont INDISSOCIABLES : network_mode "service:gluetun"
+# exige qu'ils soient dans le même projet compose. C'est aussi ce qui garantit
+# qu'aucun octet ne sort hors du tunnel si le VPN tombe.
+
+services:
+  gluetun:
+    image: qmcgaw/gluetun:v3.41.3
+    container_name: gluetun
+    restart: unless-stopped
+    cap_add: [NET_ADMIN]
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    environment:
+      TZ: ${TZ}
+      VPN_SERVICE_PROVIDER: ${VPN_SERVICE_PROVIDER}
+      VPN_TYPE: ${VPN_TYPE}
+      SERVER_COUNTRIES: ${SERVER_COUNTRIES}
+      WIREGUARD_PRIVATE_KEY: ${WIREGUARD_PRIVATE_KEY}
+    # Décommenter si votre tracker a un DNS instable (voir docs/pieges.md) :
+    # extra_hosts:
+    #   - ${TRACKER_HOST_ENTRY}
+    volumes:
+      - ${STACK_ROOT}/appdata/gluetun:/gluetun
+    ports:
+      # Les ports de qbittorrent sont publiés ICI : il n'a pas de pile réseau.
+      - "${QBITTORRENT_WEBUI_PORT}:8080"
+      - "${TORRENT_PORT}:6881"
+      - "${TORRENT_PORT}:6881/udp"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "https://1.1.1.1"]
+      interval: 20s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    networks: [media]
+
+  qbittorrent:
+    image: lscr.io/linuxserver/qbittorrent:5.2.3
+    container_name: qbittorrent
+    restart: unless-stopped
+    network_mode: "service:gluetun"
+    depends_on:
+      gluetun:
+        condition: service_healthy
+    env_file: [../../common.env]
+    environment:
+      WEBUI_PORT: 8080
+    volumes:
+      - ${STACK_ROOT}/appdata/qbittorrent:/config
+      # ⚠️ Les .fastresume contiennent le chemin de sauvegarde EN DUR. Si vous
+      # migrez, montez ce volume au chemin qu'utilisait l'ancienne instance :
+      # les torrents reprennent sans revérification. Voir docs/migration.md.
+      - ${POOL_ROOT}/torrents:/torrents
+
+networks:
+  media:
+    external: true
