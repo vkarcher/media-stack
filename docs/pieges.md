@@ -272,3 +272,42 @@ Certains services journalisent leur URL de notification **en clair, mot de passe
 La parade n'est pas de le cacher, c'est de **limiter la portée** : créez un compte de publication dédié, en **écriture seule sur un seul sujet**. S'il fuite, il ne permet que d'envoyer une fausse notification — ni de lire vos alertes, ni de toucher au reste.
 
 Et prévoyez la rotation : un mot de passe de notification peut avoir **six consommateurs** *(fichier de secrets, deux fichiers de configuration, trois API)*. Scriptez-la avant d'en avoir besoin.
+
+---
+
+## 19. Le champ `description` tue un profil CrowdSec
+
+Vouloir documenter proprement son `profiles.yaml` avec une clé `description:` **empêche l'agent de démarrer** :
+
+```
+field description not found in type csconfig.ProfileCfg
+```
+
+Utilisez des commentaires `#`. Le symptôme est le même que le piège n°17 — une boucle de redémarrage — ce qui rend le diagnostic trompeur : on soupçonne sa dernière modification de fond alors que la cause est une ligne de commentaire mal placée.
+
+**La parade générale**, valable pour toute la configuration de CrowdSec : `cscli` relit la configuration **à froid**, dans son propre processus. On peut donc valider sans toucher à l'agent en cours d'exécution.
+
+```bash
+docker exec crowdsec cscli machines list              # valide profiles.yaml
+docker exec crowdsec cscli notifications test ntfy    # valide un gabarit de plugin
+```
+
+Si la commande passe, le redémarrage passera. Testez **avant**, pas après : un service de sécurité arrêté ne protège rien, et une boucle de redémarrage se répare toujours moins vite qu'on ne l'espère.
+
+---
+
+## 20. L'acquisition de fichier démarre à la FIN du fichier
+
+Le piège des tests. Vous écrivez de fausses lignes d'attaque dans un journal, vous relancez, et **rien ne se déclenche**.
+
+CrowdSec prend les nouveaux fichiers en charge avec `whence: 2`, c'est-à-dire **depuis la fin**. Tout ce qui précède la prise en charge n'est jamais lu.
+
+L'ordre correct :
+
+```bash
+: > /chemin/du/journal/log_test.log     # 1. créer le fichier VIDE
+sleep 20                                # 2. laisser CrowdSec le prendre en charge
+cat lignes-d-attaque >> .../log_test.log  # 3. ALORS écrire
+```
+
+Sans ça on conclut que la détection ne fonctionne pas, et on part corriger une configuration qui était juste — le pire usage possible d'une heure.

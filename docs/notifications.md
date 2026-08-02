@@ -178,9 +178,60 @@ Sans seuil, un hoquet réseau de dix secondes vous réveille. Avec, seules les v
 
 ### Détection d'intrusion
 
-CrowdSec dispose d'un système de plugins de notification. Un plugin HTTP suffit pour publier vers ntfy, en incluant le pays et l'opérateur de l'IP bannie — utile pour distinguer un scan automatisé d'une tentative ciblée.
+CrowdSec dispose d'un système de plugins de notification. Un plugin HTTP suffit pour publier vers ntfy. Le gabarit ci-dessous tient en deux lignes et remonte surtout **le nom du compte visé** — l'information qui sépare un robot d'un attaquant renseigné.
+
+```yaml
+# appdata/crowdsec/config/notifications/ntfy.yaml
+type: http
+name: ntfy
+format: |
+  {{range . -}}
+  {{- $alert := . -}}
+  {{- $user := "" -}}
+  {{- range $alert.Events -}}{{- range .Meta -}}{{- if eq .Key "user" -}}{{- $user = .Value -}}{{- end -}}{{- end -}}{{- end -}}
+  {{- range .Decisions -}}
+  {{.Type}} {{.Value}} pendant {{.Duration}}
+  ↳ {{.Scenario}}{{if $user}} · compte « {{$user}} »{{end}}{{if $alert.Source.Cn}} · {{$alert.Source.Cn}}{{end}}{{if $alert.Source.AsName}} {{$alert.Source.AsName}}{{end}}
+  {{end -}}
+  {{end -}}
+url: https://ntfy.exemple.com/homelab
+method: POST
+headers:
+  Authorization: Basic <base64 de "publisher:MOTDEPASSE">
+  Title: 🔴 CrowdSec
+  Priority: "4"
+```
+
+Ce qui arrive sur le téléphone :
+
+```
+🔴 CrowdSec
+ban 203.0.113.42 pendant 24h
+↳ LePresidente/jellyfin-bf · compte « admin » · FR OVH SAS
+```
+
+Un `admin` ou un `root` trahit un robot qui devine, et vous pouvez l'ignorer. **Le nom d'un de vos vrais utilisateurs signifie qu'on vous connaît** — et là il y a quelque chose à faire.
+
+Trois détails qui coûtent du temps :
+
+- Le préfixe du scénario *(`LePresidente/`)* est **l'auteur de la collection sur le Hub**, pas un nom d'utilisateur. Il est permanent, ce n'est pas un artefact de test.
+- Les gardes `{{if}}` sur le pays et l'opérateur ne sont pas cosmétiques : certaines IP n'ont **aucune donnée GeoIP**, et sans elles la ligne se termine par un séparateur orphelin.
+- Sur une **énumération** de comptes, seul le dernier nom essayé s'affiche : un gabarit Go ne sait pas dédoublonner une liste. Le scénario signale déjà le cas *(`_user-enum`)*.
 
 ⚠️ Pensez à **activer la notification dans le profil** *(`profiles.yaml`)*, pas seulement à écrire le fichier de plugin. Les deux sont nécessaires.
+
+**Ce fichier contient un mot de passe.** Gardez-le hors du dépôt, en `600`, comme les autres fichiers de plugin livrés par CrowdSec — le dépôt ne porte qu'un `.example`.
+
+#### Valider sans casser le service
+
+Un gabarit malformé **empêche CrowdSec de démarrer**. Or `cscli` relit la configuration à froid : on peut donc tester **avant** de redémarrer l'agent.
+
+```bash
+docker exec crowdsec cscli notifications test ntfy       # compile le gabarit et envoie
+docker exec crowdsec cscli notifications reinject <id>   # rejoue une VRAIE alerte
+```
+
+`reinject` est le plus utile des deux : il rejoue une alerte existante **avec ses métadonnées**, et montre donc le rendu final, nom de compte compris. Il ne crée aucune décision et ne bannit personne. Récupérez un identifiant avec `cscli alerts list`.
 
 ---
 

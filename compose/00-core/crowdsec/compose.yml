@@ -29,6 +29,9 @@ services:
       - ${STACK_ROOT}/appdata/jellyfin/log:/var/log/jellyfin:ro
       - ./acquis.yaml:/etc/crowdsec/acquis.d/npm.yaml:ro
       - ./acquis-jellyfin.yaml:/etc/crowdsec/acquis.d/jellyfin.yaml:ro
+      # Sans ce fichier, TOUT bannissement notifie : plusieurs dizaines de
+      # messages par jour, et on cesse de les lire. Voir docs/securite.md.
+      - ./profiles.yaml:/etc/crowdsec/profiles.yaml:ro
       - ./whitelist.yaml:/etc/crowdsec/parsers/s02-enrich/whitelist-local.yaml:ro
     networks: [monitoring]
     expose: ["8080"]

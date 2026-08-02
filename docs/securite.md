@@ -113,6 +113,41 @@ Les scénarios nginx détectent le **sondage** : rafales de 404, chemins connus,
 
 Pour Jellyfin, la collection communautaire `LePresidente/jellyfin` lit ses journaux applicatifs et déclenche sur les échecs d'authentification et l'énumération de comptes. Elle exige de monter le dossier de journaux de Jellyfin dans le conteneur CrowdSec.
 
+### Ne notifier que ce qui mérite une réaction
+
+Avec le profil livré par défaut, **tout** bannissement notifie. Sur un serveur exposé cela représente plusieurs dizaines de messages par jour, et une même IP en produit un **par scénario déclenché** — trois notifications pour un seul scanner. Au bout d'une journée on n'y prête plus attention, ce qui vide le dispositif de son intérêt : le seul message qui comptait passe inaperçu au milieu du bruit.
+
+Le tri utile n'est pas *quoi bloquer* — on bloque tout — mais **quoi signaler**. Un scanner opportuniste n'appelle aucune action : il est déjà banni, et il sera remplacé par un autre demain. Une tentative d'authentification, elle, vise vos comptes.
+
+Les profils sont évalués **dans l'ordre**, et `on_success: break` arrête l'évaluation au premier qui correspond. D'où la règle : le cas particulier d'abord, le cas général ensuite.
+
+```yaml
+name: auth_bruteforce
+filters:
+  - Alert.Remediation == true && Alert.GetScope() == "Ip" && Alert.GetScenario() matches "(bf|bruteforce)"
+decisions:
+  - type: ban
+    duration: 24h          # ciblé : on garde dehors plus longtemps
+notifications:
+  - ntfy
+on_success: break
+---
+name: default_ip_remediation
+filters:
+  - Alert.Remediation == true && Alert.GetScope() == "Ip"
+decisions:
+  - type: ban
+    duration: 4h
+# aucune clé `notifications` : banni en silence
+on_success: break
+```
+
+Le filtre `matches "(bf|bruteforce)"` couvre d'un coup `jellyfin-bf`, `jellyfin-bf_user-enum`, `http-generic-bf` et les scénarios SSH — inutile de les énumérer. Gardez en revanche les bannissements de **plage** notifiés : ils sont rares, et signalent autre chose qu'un scanner isolé.
+
+Mesuré sur une installation réelle : de plusieurs dizaines de messages par jour à **zéro pour les scans**, sans rien perdre sur les attaques d'authentification.
+
+⚠️ Vérifiez les **deux** moitiés, pas seulement celle qui se tait. Un filtre trop large rendrait tout silencieux, y compris ce qui compte — et vous ne le découvririez qu'en analysant un incident après coup.
+
 ### Le bouncer : là où ça se joue
 
 > **Le trafic vers un conteneur ne traverse JAMAIS `INPUT`.**

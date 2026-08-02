@@ -1,0 +1,53 @@
+# ==============================================================================
+#  Profils de remédiation CrowdSec
+# ==============================================================================
+#  Les profils sont évalués DANS L'ORDRE. Le premier qui correspond applique sa
+#  décision, et `on_success: break` arrête l'évaluation. L'ordre est donc la
+#  logique : le cas particulier d'abord, le cas général ensuite.
+#
+#  Principe retenu : distinguer ce qui mérite une alerte de ce qui n'en mérite
+#  pas. Un scanner opportuniste est banni sans rien dire — il n'appelle aucune
+#  action de votre part, et il y en a des dizaines par jour. Une tentative
+#  d'authentification, en revanche, est ciblée : elle vise vos comptes.
+# ==============================================================================
+
+# --- 1. Attaques sur authentification : notifiées, bannies plus longtemps ----
+name: auth_bruteforce
+# Bruteforce et énumération de comptes — ciblé, donc notifié
+filters:
+  - Alert.Remediation == true && Alert.GetScope() == "Ip" && Alert.GetScenario() matches "(bf|bruteforce)"
+decisions:
+  - type: ban
+    duration: 24h
+notifications:
+  - ntfy
+on_success: break
+
+---
+
+# --- 2. Tout le reste : banni en silence -------------------------------------
+# Scans, sondages de CVE, recherche de fichiers sensibles, crawl agressif.
+# Volume normal : plusieurs dizaines par jour sur une IP résidentielle exposée.
+# Aucune notification : le bannissement est déjà appliqué, il n'y a rien à faire.
+name: default_ip_remediation
+# Scans opportunistes — bannis sans notification
+filters:
+  - Alert.Remediation == true && Alert.GetScope() == "Ip"
+decisions:
+  - type: ban
+    duration: 4h
+on_success: break
+
+---
+
+# --- 3. Plages d'adresses ----------------------------------------------------
+name: default_range_remediation
+# Bannissement de plage — rare, donc notifié
+filters:
+  - Alert.Remediation == true && Alert.GetScope() == "Range"
+decisions:
+  - type: ban
+    duration: 4h
+notifications:
+  - ntfy
+on_success: break

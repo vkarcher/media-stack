@@ -1,0 +1,59 @@
+# ==============================================================================
+#  Plugin de notification CrowdSec → ntfy
+# ==============================================================================
+#  Ce fichier n'est PAS monté depuis le dépôt : il contient un mot de passe.
+#  Copiez-le à la main, puis restreignez ses droits :
+#
+#    cp ntfy.yaml.example \
+#       ${STACK_ROOT}/appdata/crowdsec/config/notifications/ntfy.yaml
+#    # remplissez l'en-tête Authorization, puis :
+#    chmod 600 ${STACK_ROOT}/appdata/crowdsec/config/notifications/ntfy.yaml
+#
+#  L'en-tête attend « publisher:MOTDEPASSE » encodé en base64 :
+#    printf 'publisher:MOTDEPASSE' | base64
+#
+#  ⚠️ Écrire ce fichier ne suffit pas : il faut AUSSI référencer `ntfy` dans
+#     `notifications:` du profil concerné, dans profiles.yaml.
+#
+#  ⚠️ Un gabarit malformé empêche CrowdSec de démarrer. Validez avant de
+#     redémarrer l'agent — cscli relit la configuration à froid :
+#       docker exec crowdsec cscli notifications test ntfy
+#     Puis, pour voir le rendu réel d'une alerte existante (sans rien bannir) :
+#       docker exec crowdsec cscli notifications reinject <id d'alerte>
+# ==============================================================================
+
+type: http
+name: ntfy
+log_level: info
+
+# Deux lignes, sans ligne vide : l'espace d'affichage d'une notification est
+# court. La gravité est portée par la pastille du titre, inutile de la répéter.
+#
+# Le nom du compte visé est extrait des métadonnées de l'alerte : c'est lui qui
+# distingue un robot qui devine (« admin », « root ») d'un attaquant qui connaît
+# vos utilisateurs. Sur une énumération, seul le dernier nom essayé s'affiche —
+# un gabarit Go ne sait pas dédoublonner une liste.
+#
+# Les gardes {{if}} sur le pays et l'opérateur ne sont pas cosmétiques :
+# certaines IP n'ont aucune donnée GeoIP, et la ligne se terminerait par un
+# séparateur orphelin.
+format: |
+  {{range . -}}
+  {{- $alert := . -}}
+  {{- $user := "" -}}
+  {{- range $alert.Events -}}{{- range .Meta -}}{{- if eq .Key "user" -}}{{- $user = .Value -}}{{- end -}}{{- end -}}{{- end -}}
+  {{- range .Decisions -}}
+  {{.Type}} {{.Value}} pendant {{.Duration}}
+  ↳ {{.Scenario}}{{if $user}} · compte « {{$user}} »{{end}}{{if $alert.Source.Cn}} · {{$alert.Source.Cn}}{{end}}{{if $alert.Source.AsName}} {{$alert.Source.AsName}}{{end}}
+  {{end -}}
+  {{end -}}
+
+url: https://ntfy.exemple.com/homelab
+method: POST
+headers:
+  Authorization: Basic <base64 de "publisher:MOTDEPASSE">
+  # Le titre ne porte que l'application, le corps explique le problème.
+  Title: 🔴 CrowdSec
+  # Priorité 4 : perce le mode silencieux. Justifié parce que seules les
+  # attaques ciblées notifient — les scans sont bannis sans un mot.
+  Priority: "4"
