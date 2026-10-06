@@ -2,7 +2,7 @@ name: prowlarr
 
 services:
   prowlarr:
-    image: lscr.io/linuxserver/prowlarr:2.5.2
+    image: lscr.io/linuxserver/prowlarr:2.6.5
     container_name: prowlarr
     restart: unless-stopped
     env_file: [../../../common.env]

@@ -9,7 +9,7 @@ services:
       context: .
       args:
         VERSION: v0.0.34
-    image: local/crowdsec-firewall-bouncer:0.0.34
+    image: local/crowdsec-firewall-bouncer:0.0.36
     container_name: crowdsec-bouncer
     restart: unless-stopped
     # Réseau de l'hôte : indispensable pour manipuler son pare-feu.

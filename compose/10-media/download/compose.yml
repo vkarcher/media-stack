@@ -37,7 +37,7 @@ services:
     networks: [media]
 
   qbittorrent:
-    image: lscr.io/linuxserver/qbittorrent:5.2.3
+    image: lscr.io/linuxserver/qbittorrent:5.2.4
     container_name: qbittorrent
     restart: unless-stopped
     network_mode: "service:gluetun"
