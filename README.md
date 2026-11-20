@@ -1,118 +1,33 @@
-# 🎬 Media Stack
+<p align="center">
+  <img src="assets/readme/hero.svg" alt="media-stack : torrents/film.mkv et media/film.mkv pointent vers un seul fichier sur le disque" width="100%">
+</p>
 
-Stack média auto-hébergée complète : streaming, portail de requêtes, automatisation, reverse proxy, détection d'intrusion, supervision et notifications push.
+<p align="center">
+  <a href="LICENSE"><img alt="Licence MIT" src="https://img.shields.io/badge/licence-MIT-3ddc97?style=flat-square"></a>
+  <img alt="Docker Compose" src="https://img.shields.io/badge/docker-compose-2496ed?style=flat-square">
+  <img alt="Images à version épinglée" src="https://img.shields.io/badge/images-versions%20%C3%A9pingl%C3%A9es-8a97a6?style=flat-square">
+</p>
 
-**Ce dépôt n'est pas une liste de conteneurs.** Des listes de conteneurs, il en existe des centaines. Ce qu'il contient en plus, c'est **la raison de chaque choix** et **les pièges qui coûtent des heures** — ceux qui n'apparaissent dans aucun guide parce qu'on ne les découvre qu'en le faisant réellement.
+Stack média auto-hébergée en Docker Compose : streaming, demandes, automatisation, VPN, reverse proxy, détection d'intrusion et supervision. Une unité compose par service, aucune image en `:latest`, un seul point de montage pour que les hardlinks fonctionnent.
 
-Si vous ne lisez qu'un seul document, lisez **[docs/hardlinks.md](docs/hardlinks.md)**. C'est l'erreur qui fait consommer le double d'espace disque à 90 % des installations.
+C'est une base à adapter, pas une installation clé en main. La valeur du dépôt est dans la raison de chaque choix et dans les pièges documentés.
 
----
+**[Ce qui tourne](#ce-qui-tourne)** · **[Démarrage](#démarrage)** · **[Installer avec un agent](#installer-avec-un-agent)** · **[Principes](#principes)** · **[Documentation](#documentation)**
 
 ## Ce qui tourne
 
 | Rôle | Services |
 |---|---|
-| **Streaming** | Jellyfin, Seerr *(ex-Jellyseerr)* |
-| **Automatisation** | Sonarr, Radarr, Prowlarr, Bazarr, Recyclarr, Cleanuparr |
-| **Téléchargement** | qBittorrent derrière Gluetun *(VPN, kill-switch)*, Flaresolverr |
-| **Accès** | Nginx Proxy Manager, certificats wildcard Let's Encrypt |
-| **Sécurité** | CrowdSec + bouncer pare-feu |
-| **Supervision** | Gatus, Scrutiny *(SMART)*, ntfy *(push mobile)*, Arcane *(UI Docker)* |
+| Streaming et demandes | Jellyfin, Seerr |
+| Automatisation | Sonarr, Radarr, Prowlarr, Bazarr, Recyclarr, Cleanuparr |
+| Téléchargement | qBittorrent derrière Gluetun (VPN, kill-switch), Flaresolverr |
+| Accès | Nginx Proxy Manager, certificats wildcard Let's Encrypt |
+| Sécurité | CrowdSec et bouncer pare-feu |
+| Supervision | Gatus, Scrutiny, ntfy, Arcane |
 
-Dix-neuf conteneurs, **tous à version épinglée**, un fichier compose par unité.
+Optionnels, présents dans `compose/` mais non déployés par défaut : `autobrr`, `wizarr`. Voir [docs/optionnel.md](docs/optionnel.md).
 
----
-
-## Architecture
-
-```
-                          Internet
-                             │
-                    ┌────────┴────────┐
-                    │   443  ·  80    │   ← seuls ports redirigés
-                    └────────┬────────┘
-                             │
-                    ┌────────▼────────┐
-                    │      NPM        │  seul conteneur qui publie des ports
-                    │  reverse proxy  │  seul conteneur multi-réseaux
-                    └───┬─────────┬───┘
-             ┌──────────┘         └──────────┐
-        ┌────▼─────┐                   ┌─────▼─────┐
-        │  media   │                   │ monitoring│
-        ├──────────┤                   ├───────────┤
-        │ jellyfin │                   │ gatus     │
-        │ seerr    │                   │ scrutiny  │
-        │ sonarr   │                   │ arcane    │
-        │ radarr   │                   │ crowdsec  │
-        │ prowlarr │                   └───────────┘
-        │ bazarr   │
-        │ gluetun ─┼── qbittorrent (network_mode: service:gluetun)
-        └──────────┘
-```
-
-**Trois règles structurent tout :**
-
-1. **Seul le reverse proxy publie des ports.** Tous les autres services restent en `expose` et ne sont joignables que par lui, à travers le réseau Docker. Résultat : aucun port à mémoriser, aucun conflit possible, et `ss -tlnp` sur l'hôte reste presque vide.
-
-2. **Un compose par unité, jamais un monolithe.** Une unité = un service + ses dépendances privées. Un compose géant rend impossible l'arrêt d'un seul service depuis une interface — la plupart traitent un projet compose comme un bloc indivisible.
-
-3. **Un montage `/data` unique** pour tout ce qui déplace des fichiers. C'est la condition des hardlinks. Voir [docs/hardlinks.md](docs/hardlinks.md).
-
----
-
-## Les décisions qui comptent
-
-### Un seul point de montage pour le média
-
-```yaml
-# ❌ Deux montages = le conteneur voit DEUX systèmes de fichiers
-- /pool/media/movies:/movies
-- /pool/torrents:/downloads
-
-# ✅ Un seul montage, la racine du pool
-- /pool:/data
-```
-
-Avec deux montages, Radarr constate deux périphériques différents, **abandonne le hardlink et copie**. Chaque film occupe alors deux fois la place : une copie seedée, une copie dans la bibliothèque. Sur 300 films, c'est plusieurs téraoctets perdus — et on ne s'en aperçoit qu'à disque plein.
-
-→ **[docs/hardlinks.md](docs/hardlinks.md)** : le détail, et surtout **comment vérifier** qu'un hardlink a réellement fonctionné.
-
-### Le scratch de téléchargement va sur le disque lent, pas sur le SSD
-
-Contre-intuitif, et pourtant :
-
-| | Emplacement | Pourquoi |
-|---|---|---|
-| `incomplete` *(téléchargement)* | **pool HDD** | À la fin du torrent, le fichier est **déplacé** vers `complete`. Sur un autre système de fichiers, ce déplacement devient une copie intégrale. |
-| Cache de transcodage | **SSD** | Jetable, jamais déplacé, écritures aléatoires. |
-
-Le critère n'est pas « gros ou petit », c'est **« sera-t-il déplacé ? »**. Un cache ne l'est jamais, un téléchargement toujours.
-
-### Tags d'image figés, jamais `:latest`
-
-`:latest` transforme chaque `docker compose pull` en loterie. Une montée de version majeure passe inaperçue jusqu'à ce qu'un service refuse de démarrer avec une base migrée dans un sens irréversible — c'est précisément ce qui rend une restauration impossible.
-
-**Ne déployez pas Watchtower en mise à jour automatique.** Utilisez un notificateur (diun, ou les connecteurs `OnApplicationUpdate` de Sonarr/Radarr) : vous êtes prévenu, vous bumpez le tag, vous committez. La mise à jour devient une décision tracée.
-
-### Les secrets ne sont jamais dans un compose
-
-Le compose est versionné. Les secrets vivent dans `.env` *(interpolation)* ou `secrets/` *(fichiers montés)*, tous deux exclus de git. `.env.example` liste les clés attendues avec des valeurs vides : c'est votre documentation de ce qu'il faut fournir pour redéployer.
-
----
-
-## Prérequis
-
-- Un hôte Linux avec Docker et le plugin Compose
-- Un nom de domaine, avec un DNS où vous pouvez créer des enregistrements
-- **Un seul système de fichiers** pour `media/` et `torrents/` *(voir hardlinks)*
-- Un abonnement VPN compatible [gluetun](https://github.com/qdm12/gluetun-wiki) si vous passez par du torrent
-- De la RAM : le cache disque évite l'essentiel des accès aux plateaux. 16 Go confortable, 8 Go suffisant.
-
-Le transcodage matériel *(`/dev/dri`)* est optionnel mais change tout dès deux flux simultanés.
-
----
-
-## Installation
+## Démarrage
 
 ```bash
 git clone https://github.com/vkarcher/media-stack.git && cd media-stack
@@ -120,42 +35,45 @@ cp .env.example .env && $EDITOR .env
 ./install.sh
 ```
 
-`install.sh` prépare l'environnement — arborescence, liens `.env`, réseaux Docker, gabarits de secrets — et **vérifie la condition des hardlinks avant qu'il ne soit trop tard** : si `media/` et `torrents/` ne sont pas sur le même système de fichiers, il s'arrête plutôt que de vous laisser consommer le double d'espace pendant des mois.
+`install.sh` prépare l'arborescence, les réseaux Docker et les gabarits de secrets, puis vérifie que `media/` et `torrents/` partagent un système de fichiers. Il ne démarre rien. La suite, de zéro à Jellyfin en ligne : [QUICKSTART.md](QUICKSTART.md).
 
-Il ne démarre **rien** : le déploiement reste explicite, service par service.
+## Installer avec un agent
 
-→ **[QUICKSTART.md](QUICKSTART.md)** — la suite, de zéro à Jellyfin en ligne.
+Un agent de code (Claude Code, Codex, etc.) peut dérouler l'installation de bout en bout. Le mode d'emploi, avec les points où il doit s'arrêter et demander à l'humain, est dans **[docs/agent-setup.md](docs/agent-setup.md)**. Il est résumé pour les agents dans [AGENTS.md](AGENTS.md).
 
----
+## Principes
+
+- **Seul le reverse proxy publie des ports.** Les autres services restent en `expose`.
+- **Un compose par unité**, jamais un monolithe : on arrête un service sans toucher aux autres.
+- **Un seul montage `/data`** pour tout ce qui déplace des fichiers. Deux montages, et Radarr copie au lieu de lier : [docs/hardlinks.md](docs/hardlinks.md).
+- **Versions figées, mises à jour décidées.** Pas de `:latest`, pas de mise à jour automatique : un notificateur prévient, vous changez le tag.
+- **Aucun secret dans un compose.** `.env` et `secrets/` sont exclus de Git, `.env.example` liste les clés attendues.
 
 ## Documentation
 
 | Document | Contenu |
 |---|---|
-| **[hardlinks.md](docs/hardlinks.md)** | Le piège n°1, et la méthode de vérification |
-| **[architecture.md](docs/architecture.md)** | Réseaux, nommage, découpage des compose |
-| **[reverse-proxy.md](docs/reverse-proxy.md)** | Wildcards, DNS-01, sous-domaines privés, le port 80 |
-| **[securite.md](docs/securite.md)** | CrowdSec, `DOCKER-USER`, ce qui bloque réellement |
-| **[notifications.md](docs/notifications.md)** | ntfy, push iOS, brancher chaque service |
-| **[migration.md](docs/migration.md)** | Reprendre une installation existante sans rien perdre |
-| **[pieges.md](docs/pieges.md)** | Tout ce qui a coûté du temps, et pourquoi |
-| **[optionnel.md](docs/optionnel.md)** | Services optionnels, et ceux à éviter |
+| [agent-setup.md](docs/agent-setup.md) | Installation pilotée par un agent |
+| [hardlinks.md](docs/hardlinks.md) | Le piège n°1 et comment le vérifier |
+| [architecture.md](docs/architecture.md) | Réseaux, nommage, découpage des compose |
+| [reverse-proxy.md](docs/reverse-proxy.md) | Wildcards, DNS-01, sous-domaines privés |
+| [securite.md](docs/securite.md) | CrowdSec, `DOCKER-USER`, ce qui bloque réellement |
+| [notifications.md](docs/notifications.md) | ntfy, push mobile, brancher chaque service |
+| [migration.md](docs/migration.md) | Reprendre une installation existante |
+| [pieges.md](docs/pieges.md) | Tout ce qui a coûté du temps |
+| [optionnel.md](docs/optionnel.md) | Services optionnels, et ceux à éviter |
 
----
+<details>
+<summary>Prérequis</summary>
 
-## Pour aller plus loin
+- Un hôte Linux avec Docker et le plugin Compose
+- Un nom de domaine dont vous gérez le DNS
+- Un seul système de fichiers pour `media/` et `torrents/`
+- Un abonnement VPN compatible [gluetun](https://github.com/qdm12/gluetun-wiki) pour le téléchargement
+- 8 Go de RAM au minimum, 16 Go confortable. Le transcodage matériel (`/dev/dri`) est optionnel.
 
-Présents dans `compose/` mais non déployés par défaut :
-
-| | |
-|---|---|
-| **`autobrr`** | Récupère une release **quelques secondes** après son annonce IRC. Sur un tracker privé, c'est le plus gros levier de toute la stack. |
-| **`wizarr`** | Liens d'invitation Jellyfin : la personne clique, crée son compte, reçoit les bonnes bibliothèques. |
-
-Et deux pistes documentées sans compose : **`cross-seed`** *(du ratio sans rien télécharger, mais il faut au moins deux trackers)* et **`Tdarr`** *(transcodage de masse — il réécrit vos fichiers, à ne pas prendre à la légère)*.
-
-→ **[docs/optionnel.md](docs/optionnel.md)**, qui liste aussi ce qui **ne vaut pas** le détour, pour vous éviter de l'évaluer.
+</details>
 
 ## Licence
 
-MIT. Faites-en ce que vous voulez.
+[MIT](LICENSE)
